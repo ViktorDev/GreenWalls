@@ -1,37 +1,81 @@
 ﻿using UnityEngine;
 using System.IO;
 using System.Text;
-using UnityEngine.UI;
-using UnityEngine.SceneManagement;
 using System.Collections;
+using ElicitIce;
 
-public class GalagyScene : MonoBehaviour {
+public class GalagyScene : SmartMonoBehaviour {
 
     public GameObject image;
-    public GameObject imagePanel;
-    public GameObject operationPanel;
-    public GameObject selectedImage;
-    void Start () {
-        loadImages();
-        Debug.Log(Application.persistentDataPath);
+    ImagePicker imagePicker;
+    ImagePickerData data;
+
+   public override void  Start () {
+        base.Start();
+        imagePicker = GetOrCreateComponent<ImagePicker>();
+        data = new ImagePickerData(null, null, "Gallery", 1600, 1600, true, true);
+
+        data.gameObject = gameObject.name;
+        data.callback = CustomeReceiver;
     }
 	
 	// Update is called once per frame
 	void Update () {
-        if (Input.GetKeyDown(KeyCode.Escape)) SceneManager.LoadScene(0);
-        if (selectedImage != null) operationPanel.SetActive(true);
+        if (Input.GetKeyDown(KeyCode.Escape)) Application.Quit();
 	}
 
-    public void loadImages() {
-        StringBuilder text = new StringBuilder();
-       foreach (string file in Directory.GetFiles(Application.persistentDataPath))
- //           foreach (string file in Directory.GetFiles("D"))
-            {
-             StartCoroutine(loadImage(file));
-        }
+    public void openGallery() {
+        
+        SetData(true, false, false);
+
+        imagePicker.StartImagePicker(data);
     }
 
-    IEnumerator loadImage(string file) {
+    private void SetData(bool useDefault, bool useCamera, bool multiple)
+    {
+        data.useDefault = useDefault;
+        data.showCamera = useCamera;
+        data.selectMultiple = multiple;
+    }
+
+    internal void CustomeReceiver(string result)
+    {
+        int index = -1;
+        string[] parts = result.Split('|');
+
+        string load = null;
+
+        if (parts.Length == 1)
+        {
+            //picker result
+            load = parts[0];
+        }
+        else {
+            if (parts.Length != 2 || !int.TryParse(parts[0], out index))
+            {
+                Debug.LogError("Selected callback was not valid for the executed action");
+                return;
+            }
+
+            load = parts[1];
+
+            //manually remove the entry
+            imagePicker.RemoveReceivedEntry(index);
+        }
+
+
+        if (string.IsNullOrEmpty(load))
+        {
+            //use logcat to get more information
+            Debug.Log("SDCard full or invalid file selected, please try again");
+            return;
+        }
+
+              StartCoroutine(loadImage(load));
+    }
+
+    IEnumerator loadImage(string file)
+    {
 
         Texture2D tex = null;
         byte[] fileData;
@@ -42,24 +86,8 @@ public class GalagyScene : MonoBehaviour {
             tex.LoadImage(fileData); //..this will auto-resize the texture dimensions.
         }
         yield return tex;
-        GameObject imageView = Instantiate(image) as GameObject;
-        Sprite sp = new Sprite();
-        sp = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(tex.width / 2, tex.height / 2), 100);
-        imageView.GetComponent<Image>().sprite = sp;
 
-        imageView.transform.SetParent(imagePanel.transform);
-        imageView.GetComponent<Transform>().localScale = new Vector3(1, 1, 1);
-        imageView.tag = file;
-    }
-
-    public void selectImage() {
- //       Settings.currPhoto = selectedImage.GetComponent<Image>().sprite.texture;
-        SceneManager.LoadScene(4);
-    }
-
-    public void deleteImage() {
-        File.Delete(selectedImage.tag);
-        Destroy(selectedImage);
-        operationPanel.SetActive(false);
+        image.GetComponent<MeshRenderer>().material.mainTexture = tex;
+        image.GetComponent<MeshRenderer>().material.shader = Shader.Find("Sprites/Default");
     }
 }

@@ -19,11 +19,11 @@ public class GalaryItem : MonoBehaviour {
         if (isButtonClicked) {
             if (!isClicked)
             {
-                sceneController.selectedImage = gameObject;
+   //             sceneController.selectedImage = gameObject;
                 isClicked = true;
             }
             else {
-                sceneController.selectedImage = null;
+ //               sceneController.selectedImage = null;
                 isClicked = false;
             }
         }
